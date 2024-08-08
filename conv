@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+
+import argparse
+
+conversion_factors = {
+    'distance': {
+        'meter': 1,
+        'kilometer': 1000,
+        'mile': 1609.344,
+        'yard': 0.9144,
+        'foot': 0.3048,
+        'inch': 0.0254,
+        'nautical mile': 1852,
+        'light year': 9.461e15,
+        'parsec': 3.086e16
+    },
+    'temperature': {
+        'celsius': lambda x: x,
+        'fahrenheit': lambda x: (x - 32) * 5.0 / 9.0,
+        'kelvin': lambda x: x - 273.15,
+        'rankine': lambda x: (x - 491.67) * 5.0 / 9.0,
+        'reaumur': lambda x: x * 4.0 / 5.0
+    },
+    'speed': {
+        'm/s': 1,
+        'km/h': 1000 / 3600,
+        'mph': 1609.344 / 3600,
+        'ft/s': 0.3048,
+        'knots': 0.514444,
+        'cm/s': 0.01
+    },
+    'mass': {
+        'kilogram': 1,
+        'gram': 0.001,
+        'milligram': 1e-6,
+        'pound': 0.453592,
+        'ounce': 0.0283495,
+        'ton': 1000,
+        'stone': 6.35029
+    },
+    'area': {
+        'square meter': 1,
+        'square kilometer': 1e6,
+        'square mile': 2.59e6,
+        'acre': 4046.86,
+        'hectare': 1e4,
+        'square foot': 0.092903,
+        'square yard': 0.836127
+    },
+    'volume': {
+        'liter': 1,
+        'milliliter': 0.001,
+        'cubic meter': 1000,
+        'cubic centimeter': 1e-3,
+        'gallon (US)': 3.78541,
+        'gallon (UK)': 4.54609,
+        'quart (US)': 0.946353,
+        'quart (UK)': 1.13652,
+        'pint (US)': 0.473176,
+        'pint (UK)': 0.568261
+    },
+    'pressure': {
+        'pascal': 1,
+        'bar': 1e5,
+        'psi': 6894.76,
+        'atm': 101325,
+        'torr': 133.322,
+        'mmHg': 133.322,
+        'kilopascal': 1000
+    },
+    'energy': {
+        'joule': 1,
+        'calorie': 4.184,
+        'kilocalorie': 4184,
+        'watt-hour': 3600,
+        'kilowatt-hour': 3.6e6,
+        'electronvolt': 1.602e-19
+    },
+    'power': {
+        'watt': 1,
+        'kilowatt': 1000,
+        'megawatt': 1e6,
+        'horsepower (US)': 745.7,
+        'horsepower (UK)': 735.5,
+        'BTU/hr': 0.293071
+    },
+    'time': {
+        'second': 1,
+        'minute': 60,
+        'hour': 3600,
+        'day': 86400,
+        'week': 604800,
+        'month': 2.628e6,
+        'year': 3.154e7
+    },
+    'frequency': {
+        'hertz': 1,
+        'kilohertz': 1e3,
+        'megahertz': 1e6,
+        'gigahertz': 1e9,
+        'terahertz': 1e12
+    },
+    'angle': {
+        'radian': 1,
+        'degree': lambda x: x * (3.141592653589793 / 180),
+        'gradian': lambda x: x * (3.141592653589793 / 200),
+        'minute': lambda x: x / 60 * (3.141592653589793 / 180),
+        'second': lambda x: x / 3600 * (3.141592653589793 / 180)
+    },
+    'data': {
+        'bit': 1,
+        'byte': 8,
+        'kilobyte': 8192,
+        'megabyte': 8.388608e6,
+        'gigabyte': 8.589869e9,
+        'terabyte': 8.796093e12,
+        'petabyte': 8.988465e15,
+        'exabyte': 9.223372e18
+    },
+    'acceleration': {
+        'meter/second^2': 1,
+        'kilometer/hour^2': 1e-6 * (1000 / 3600)**2,
+        'g': 9.80665,
+        'foot/second^2': 0.3048
+    },
+    'flux': {
+        'weber': 1,
+        'maxwell': 1e-8,
+        'tesla meter^2': 1
+    },
+    'capacitance': {
+        'farad': 1,
+        'microfarad': 1e-6,
+        'nanofarad': 1e-9,
+        'picofarad': 1e-12
+    },
+    'force': {
+        'newton': 1,
+        'dyne': 1e-5,
+        'pound-force': 4.44822,
+        'kilogram-force': 9.80665
+    },
+    'torque': {
+        'newton meter': 1,
+        'foot-pound': 1.35582,
+        'kilogram meter': 9.80665,
+        'ounce inch': 0.007062
+    },
+    'flow': {
+        'liter/second': 1,
+        'milliliter/second': 0.001,
+        'cubic meter/second': 1000,
+        'gallon/minute (US)': 0.06309,
+        'gallon/minute (UK)': 0.05284
+    },
+    'luminance': {
+        'candela/m^2': 1,
+        'lux': 1 / 1,
+        'foot-candle': 10.764
+    }
+}
+
+
+def convert(value, from_unit, to_unit):
+    for category, units in conversion_factors.items():
+        if from_unit in units and to_unit in units:
+            if callable(units[from_unit]) and callable(units[to_unit]):
+                # Handle temperature conversion with lambda functions
+                base_value = units[from_unit](value)
+                converted_value = units[to_unit](base_value)
+                return converted_value
+            elif from_unit in units and to_unit in units:
+                # Handle other unit conversions
+                base_value = value * units[from_unit]
+                converted_value = base_value / units[to_unit]
+                return converted_value
+            else:
+                raise ValueError(f"Conversion from {from_unit} to {to_unit} is not supported.")
+    raise ValueError(f"Units {from_unit} or {to_unit} are not recognized.")
+
+def convert_all(value, from_unit):
+    results = {}
+    for category, units in conversion_factors.items():
+        if from_unit in units:
+            for to_unit in units:
+                if from_unit != to_unit:
+                    try:
+                        converted_value = convert(value, from_unit, to_unit)
+                        results[to_unit] = converted_value
+                    except ValueError:
+                        continue
+    return results
+
+def list_categories():
+    print("Available categories:")
+    for category in conversion_factors:
+        print(f"  {category}")
+
+def list_units(category):
+    if category in conversion_factors:
+        print(f"Available units in '{category}':")
+        for unit in conversion_factors[category]:
+            print(f"  {unit}")
+    else:
+        print(f"Category '{category}' not found.")
+
+def main():
+    parser = argparse.ArgumentParser(description="Unit Converter")
+
+    # Define arguments for conversion
+    parser.add_argument('-v', '--value', type=float, help='Value to convert')
+    parser.add_argument('-U', '--unit', type=str, help='Unit to convert from')
+
+    # Define options for listing categories and units
+    parser.add_argument('--list-categories', '-l', action='store_true', help='List all available categories.')
+    parser.add_argument('--list-units', '-c', type=str, help='List all units in the specified category.')
+
+    args = parser.parse_args()
+
+    if args.list_categories:
+        list_categories()
+    elif args.list_units:
+        list_units(args.list_units)
+    elif args.value is not None and args.unit:
+        try:
+            results = convert_all(args.value, args.unit)
+            print(f"Converting {args.value} {args.unit} to all other units:")
+            for unit, converted_value in results.items():
+                print(f"{unit}: {converted_value:.2f}")
+        except ValueError as e:
+            print(e)
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()
+
