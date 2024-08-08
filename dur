@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+
+import os
+import subprocess
+import sys
+from datetime import timedelta
+from typing import List
+from tqdm import tqdm
+
+def get_duration(file_path: str) -> float:
+    """Get the duration of a media file using ffprobe."""
+    try:
+        result = subprocess.run([
+            'ffprobe', '-v', 'error', '-show_entries',
+            'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', file_path
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+        return float(result.stdout.strip())
+    except subprocess.CalledProcessError as e:
+        print(f"Error processing file {file_path}: {e}", file=sys.stderr)
+        return 0.0
+
+def format_duration(seconds: float) -> str:
+    """Format duration in human-readable format."""
+    td = timedelta(seconds=seconds)
+    total_seconds = int(td.total_seconds())
+    days, seconds = divmod(total_seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    
+    years, days = divmod(days, 365)
+    months, days = divmod(days, 30)
+    
+    parts = []
+    if years:
+        parts.append(f"{years} years")
+    if months:
+        parts.append(f"{months} months")
+    if days:
+        parts.append(f"{days} days")
+    if hours or minutes or seconds:
+        parts.append(f"{hours:02}:{minutes:02}:{seconds:02}")
+    
+    return " ".join(parts)
+
+def calculate_total_duration(paths: List[str]) -> float:
+    """Calculate total duration of given media files or files in directory."""
+    total_duration = 0.0
+    files_to_process = []
+    
+    for path in paths:
+        if os.path.isdir(path):
+            for root, _, files in os.walk(path):
+                for file in files:
+                    if file.lower().endswith(('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.mp3', '.wav', '.aac', '.ogg', '.flac', '.m4a')):
+                        files_to_process.append(os.path.join(root, file))
+        elif os.path.isfile(path):
+            if path.lower().endswith(('.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.mp3', '.wav', '.aac', '.ogg', '.flac', 'm4a')):
+                files_to_process.append(path)
+    
+    for file in tqdm(files_to_process, desc="Processing files", unit="file"):
+        total_duration += get_duration(file)
+    
+    return total_duration
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python script.py <media_file1> [<media_file2> ... | <directory>]")
+        sys.exit(1)
+    
+    paths = sys.argv[1:]
+    total_duration = calculate_total_duration(paths)
+    
+    if total_duration > 0:
+        print(f"Total Duration: {format_duration(total_duration)}")
+    else:
+        print("No valid media files found.")
+
+if __name__ == "__main__":
+    main()
+
